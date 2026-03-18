@@ -1,0 +1,11 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: wallet-postgres
+    environment:
+      POSTGRES_DB: wallet_db
+      POSTGRES_USER: wallet_user
+      POSTGRES_PASSWORD: wallet_pass
+      TZ: UTC
+    ports:
+      - "5432:5432"
