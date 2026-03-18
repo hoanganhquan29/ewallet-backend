@@ -1,0 +1,50 @@
+package com.wallet.ewallet.service;
+import com.wallet.ewallet.entity.Transaction;
+import com.wallet.ewallet.entity.User;
+import com.wallet.ewallet.repository.TransactionRepository;
+import com.wallet.ewallet.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class AdminService {
+
+    private final UserRepository userRepository;
+    private final TransactionRepository transactionRepository;
+    private final AuditService auditService;
+    public List<User> getAllUsers() {
+        return userRepository.findAll();
+    }
+
+    public void unlockUser(String email, String ip) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setLocked(false);
+        user.setFailedLoginAttempts(0);
+        auditService.log(
+                user.getId(),
+                "UNLOCK_USER",
+                "Admin unlocked user " + email,
+                ip
+        );
+        userRepository.save(user);
+
+    }
+
+    public Page<Transaction> getAllTransactions(int page, int size) {
+        return transactionRepository.findAll(
+                PageRequest.of(page, size)
+        );
+    }
+    public Page<Transaction> getSuspiciousTransactions(int page, int size) {
+        return transactionRepository.findBySuspiciousTrue(
+                PageRequest.of(page, size)
+        );
+    }
+}
