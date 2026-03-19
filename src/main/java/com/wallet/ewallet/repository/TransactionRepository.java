@@ -11,7 +11,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-public interface TransactionRepository extends JpaRepository<Transaction, Long> {
+public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
 
     Page<Transaction> findBySenderOrReceiver(
             User sender,
@@ -23,7 +23,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 SELECT COALESCE(SUM(t.amount),0)
 FROM Transaction t
 WHERE t.sender.id = :userId
-AND t.type = 'TRANSFER'
+AND t.type = com.wallet.ewallet.entity.TransactionType.TRANSFER
 AND t.createdAt >= :startOfDay
 """)
     BigDecimal getTodayTransferAmount(

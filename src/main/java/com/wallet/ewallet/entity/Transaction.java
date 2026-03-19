@@ -1,5 +1,6 @@
 package com.wallet.ewallet.entity;
 
+import com.wallet.ewallet.dto.TransactionStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -33,4 +34,14 @@ public class Transaction {
     private User receiver;
     @Column(nullable = false)
     private boolean suspicious = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TransactionStatus status;
+
+    @Column(name = "external_ref")
+    private String externalRef;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 }

@@ -51,7 +51,7 @@ public class AuthService {
                 "User logged in",
                 ip
         );
-        return jwtService.generateToken(user.getEmail());
+        return jwtService.generateToken(user);
 
     }
     public void register(RegisterRequest request) {
