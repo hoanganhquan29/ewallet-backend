@@ -6,4 +6,8 @@ import java.math.BigDecimal;
 @Data
 public class DepositRequest {
     private BigDecimal amount;
+
+    public BigDecimal getAmount() {
+        return amount;
+    }
 }

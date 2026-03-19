@@ -1,5 +1,6 @@
 package com.wallet.ewallet.service;
 
+import com.wallet.ewallet.entity.User;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
@@ -13,10 +14,14 @@ public class JwtService {
 
     private final Key key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
 
-    public String generateToken(String email) {
-
+    public String generateToken(User user) {
         return Jwts.builder()
-                .setSubject(email)
+                .setSubject(user.getEmail())
+
+                // ✅ THÊM 2 CLAIM QUAN TRỌNG
+                .claim("userId", user.getId())
+                .claim("role", user.getRole().name())
+
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60))
                 .signWith(key)

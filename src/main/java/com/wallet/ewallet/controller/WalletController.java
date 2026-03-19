@@ -1,8 +1,6 @@
 package com.wallet.ewallet.controller;
 
-import com.wallet.ewallet.dto.DepositRequest;
-import com.wallet.ewallet.dto.TransferRequest;
-import com.wallet.ewallet.dto.VerifyTransferRequest;
+import com.wallet.ewallet.dto.*;
 import com.wallet.ewallet.entity.Transaction;
 import com.wallet.ewallet.service.WalletService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,13 +22,7 @@ public class WalletController {
     public BigDecimal getBalance() {
         return walletService.getBalance();
     }
-    @PostMapping("/deposit")
-    public String deposit(@RequestBody DepositRequest request) {
 
-        walletService.deposit(request.getAmount());
-
-        return "Deposit successful";
-    }
    /* @PostMapping("/transfer")
     public String transfer(@RequestBody TransferRequest request) {
 
@@ -70,5 +62,14 @@ public class WalletController {
         );
 
         return "Transfer successful";
+    }
+    @PostMapping("/deposit/request")
+    public DepositResponse requestDeposit(@RequestBody DepositRequest req) {
+        return walletService.requestDeposit(req.getAmount());
+    }
+
+    @PostMapping("/deposit/callback")
+    public void callback(@RequestBody DepositCallbackRequest req) {
+        walletService.handleDepositCallback(req);
     }
 }

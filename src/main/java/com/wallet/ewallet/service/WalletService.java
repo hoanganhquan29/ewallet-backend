@@ -1,5 +1,8 @@
 package com.wallet.ewallet.service;
 
+import com.wallet.ewallet.dto.DepositCallbackRequest;
+import com.wallet.ewallet.dto.DepositResponse;
+import com.wallet.ewallet.dto.TransactionStatus;
 import com.wallet.ewallet.entity.OtpCode;
 import com.wallet.ewallet.entity.*;
 import com.wallet.ewallet.repository.*;
@@ -11,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -133,41 +137,71 @@ catch (ObjectOptimisticLockingFailureException e) {
         return wallet.getBalance();
     }
 
-    public void deposit(BigDecimal amount) {
+    @Transactional
+    public DepositResponse requestDeposit(BigDecimal amount) {
 
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new RuntimeException("Amount must be greater than 0");
+            throw new RuntimeException("Invalid amount");
         }
 
-        String email = SecurityContextHolder
-                .getContext()
-                .getAuthentication()
-                .getName();
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication().getName();
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        Wallet wallet = walletRepository.findByUser(user)
+        Transaction tx = new Transaction();
+        tx.setAmount(amount);
+        tx.setType(TransactionType.DEPOSIT);
+        tx.setReceiver(user);
+        tx.setStatus(TransactionStatus.PENDING);
+        tx.setCreatedAt(LocalDateTime.now());
+
+        transactionRepository.save(tx);
+
+        String paymentUrl = "http://localhost:8081/fake-gateway/pay?txId=" + tx.getId();
+
+        return new DepositResponse(tx.getId().toString(), paymentUrl);
+    }
+    @Transactional
+    public void handleDepositCallback(DepositCallbackRequest req) {
+
+        Transaction tx = transactionRepository.findById(
+                UUID.fromString(req.getTransactionId())
+        ).orElseThrow(() -> new RuntimeException("Transaction not found"));
+
+        // chống gọi lại
+        if (tx.getStatus() != TransactionStatus.PENDING) {
+            return;
+        }
+
+        // fake verify
+        if (!"fake-sign".equals(req.getSignature())) {
+            throw new RuntimeException("Invalid signature");
+        }
+
+        if (!"SUCCESS".equals(req.getStatus())) {
+            tx.setStatus(TransactionStatus.FAILED);
+            tx.setUpdatedAt(LocalDateTime.now());
+            transactionRepository.save(tx);
+            return;
+        }
+
+        Wallet wallet = walletRepository.findByUser(tx.getReceiver())
                 .orElseThrow(() -> new RuntimeException("Wallet not found"));
 
-        wallet.setBalance(wallet.getBalance().add(amount));
-
+        wallet.setBalance(wallet.getBalance().add(tx.getAmount()));
         walletRepository.save(wallet);
-        Transaction transaction = Transaction.builder()
-                .amount(amount)
-                .type(TransactionType.DEPOSIT)
-                .receiver(user)
-                .createdAt(LocalDateTime.now())
-                .build();
 
-        transactionRepository.save(transaction);
+        tx.setStatus(TransactionStatus.SUCCESS);
+        tx.setUpdatedAt(LocalDateTime.now());
+        transactionRepository.save(tx);
 
-        LedgerEntry entry = LedgerEntry.builder()
-                .wallet(wallet)
-                .amount(amount)
-                .type(LedgerType.DEPOSIT)
-                .createdAt(LocalDateTime.now())
-                .build();
+        LedgerEntry entry = new LedgerEntry();
+        entry.setWallet(wallet);
+        entry.setAmount(tx.getAmount());
+        entry.setType(LedgerType.DEPOSIT);
+        entry.setCreatedAt(LocalDateTime.now());
 
         ledgerRepository.save(entry);
     }
