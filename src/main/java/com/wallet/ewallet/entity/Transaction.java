@@ -1,6 +1,5 @@
 package com.wallet.ewallet.entity;
 
-import com.wallet.ewallet.dto.TransactionStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;

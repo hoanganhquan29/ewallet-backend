@@ -2,7 +2,7 @@ package com.wallet.ewallet.service;
 
 import com.wallet.ewallet.dto.DepositCallbackRequest;
 import com.wallet.ewallet.dto.DepositResponse;
-import com.wallet.ewallet.dto.TransactionStatus;
+import com.wallet.ewallet.entity.TransactionStatus;
 import com.wallet.ewallet.entity.OtpCode;
 import com.wallet.ewallet.entity.*;
 import com.wallet.ewallet.repository.*;
@@ -93,7 +93,9 @@ try {
             .type(TransactionType.TRANSFER)
             .sender(sender)
             .receiver(receiver)
+            .status(TransactionStatus.SUCCESS)
             .createdAt(LocalDateTime.now())
+            .updatedAt(LocalDateTime.now())
             .suspicious(suspicious)
             .build();
 
@@ -279,7 +281,8 @@ catch (ObjectOptimisticLockingFailureException e) {
                 user.getId(),
                 "TRANSFER",
                 "Transferred " + amount + " to " + receiverEmail,
-                ip
+                ip,
+                user.getEmail()
         );
     }
 }

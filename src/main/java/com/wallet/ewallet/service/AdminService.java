@@ -31,7 +31,8 @@ public class AdminService {
                 user.getId(),
                 "UNLOCK_USER",
                 "Admin unlocked user " + email,
-                ip
+                ip,
+                user.getEmail()
         );
         userRepository.save(user);
 
