@@ -14,12 +14,19 @@ public class AuditService {
 
     private final AuditLogRepository auditLogRepository;
 
-    public void log(UUID userId, String action, String details, String ip) {
+    public void log(UUID userId, String action, String details, String ip, String email) {
 
         AuditLog log = new AuditLog();
         log.setUserId(userId);
         log.setAction(action);
-        log.setDetails(details);
+
+        String newDetails = String.format(
+                "{\"email\":\"%s\",\"message\":\"%s\"}",
+                email,
+                details
+        );
+        System.out.println("AUDIT DETAILS: " + newDetails);
+        log.setDetails(newDetails);
         log.setIpAddress(ip);
         log.setCreatedAt(LocalDateTime.now());
 
