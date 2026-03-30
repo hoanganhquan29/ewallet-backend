@@ -16,6 +16,19 @@ spring:
           time_zone: UTC
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: hoanganhquan977584@gmail.com
+    password: ifvo xejb zztz bqbg
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
   docker:
     compose:
       enabled: false
