@@ -31,6 +31,7 @@ public class WalletService {
             new BigDecimal("10000000");
     private final OtpRepository otpRepository;
     private final AuditService auditService;
+    private final EmailService emailService;
     @Transactional
     public void transfer(String receiverEmail, BigDecimal amount) {
 try {
@@ -161,51 +162,41 @@ catch (ObjectOptimisticLockingFailureException e) {
 
         transactionRepository.save(tx);
 
-        String paymentUrl = "http://localhost:8081/fake-gateway/pay?txId=" + tx.getId();
+        String paymentUrl = null;
 
         return new DepositResponse(tx.getId().toString(), paymentUrl);
     }
     @Transactional
     public void handleDepositCallback(DepositCallbackRequest req) {
+        System.out.println("CALLBACK TX ID: " + req.getTransactionId());
+        UUID txId = UUID.fromString(req.getTransactionId());
 
-        Transaction tx = transactionRepository.findById(
-                UUID.fromString(req.getTransactionId())
-        ).orElseThrow(() -> new RuntimeException("Transaction not found"));
+        Transaction transaction = transactionRepository.findById(txId)
+                .orElseThrow(() -> new RuntimeException("Transaction not found"));
+        System.out.println("FOUND TX: " + transaction.getId());
+        System.out.println("STATUS BEFORE: " + transaction.getStatus());
+        // 🔥 LOG DEBUG
+        System.out.println("CALLBACK TX: " + transaction.getId());
+        System.out.println("STATUS BEFORE: " + transaction.getStatus());
 
-        // chống gọi lại
-        if (tx.getStatus() != TransactionStatus.PENDING) {
+        // ❗ CHỈ update nếu chưa SUCCESS
+        if (transaction.getStatus() == TransactionStatus.SUCCESS) {
             return;
         }
 
-        // fake verify
-        if (!"fake-sign".equals(req.getSignature())) {
-            throw new RuntimeException("Invalid signature");
-        }
+        // update status
+        transaction.setStatus(TransactionStatus.SUCCESS);
 
-        if (!"SUCCESS".equals(req.getStatus())) {
-            tx.setStatus(TransactionStatus.FAILED);
-            tx.setUpdatedAt(LocalDateTime.now());
-            transactionRepository.save(tx);
-            return;
-        }
-
-        Wallet wallet = walletRepository.findByUser(tx.getReceiver())
+        // cộng tiền
+        Wallet wallet = walletRepository.findByUser(transaction.getReceiver())
                 .orElseThrow(() -> new RuntimeException("Wallet not found"));
 
-        wallet.setBalance(wallet.getBalance().add(tx.getAmount()));
+        wallet.setBalance(wallet.getBalance().add(transaction.getAmount()));
+
         walletRepository.save(wallet);
+        transactionRepository.save(transaction);
 
-        tx.setStatus(TransactionStatus.SUCCESS);
-        tx.setUpdatedAt(LocalDateTime.now());
-        transactionRepository.save(tx);
-
-        LedgerEntry entry = new LedgerEntry();
-        entry.setWallet(wallet);
-        entry.setAmount(tx.getAmount());
-        entry.setType(LedgerType.DEPOSIT);
-        entry.setCreatedAt(LocalDateTime.now());
-
-        ledgerRepository.save(entry);
+        System.out.println("BALANCE UPDATED: " + wallet.getBalance());
     }
 
     public Page<Transaction> getTransactions(int page, int size) {
@@ -245,9 +236,10 @@ catch (ObjectOptimisticLockingFailureException e) {
 
         otpRepository.save(otpCode);
 
-        System.out.println("OTP: " + otp); // demo
 
-        return "OTP sent";
+        emailService.sendOtpEmail(user.getEmail(), otp);
+
+        return "OTP sent to your email";
     }
     public void verifyAndTransfer(
             String receiverEmail,

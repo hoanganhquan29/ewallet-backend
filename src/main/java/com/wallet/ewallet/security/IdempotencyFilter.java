@@ -26,7 +26,14 @@ public class IdempotencyFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        if (!request.getRequestURI().contains("/transfer")) {
+        String path = request.getRequestURI();
+
+        if (path.startsWith("/api/payments/webhook")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        if (!path.contains("/transfer")) {
             filterChain.doFilter(request, response);
             return;
         }

@@ -32,5 +32,8 @@ public class User {
     @Column(nullable = false)
     private boolean isLocked = false;
 
-    private int failedLoginAttempts = 0;
+    @Column(nullable = false)
+    private Integer failedLoginAttempts = 0;
+    @Column(nullable = false)
+    private boolean enabled = true;
 }
