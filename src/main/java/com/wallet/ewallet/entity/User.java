@@ -3,6 +3,8 @@ package com.wallet.ewallet.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.UUID;
+import java.time.LocalDateTime;
+import jakarta.persistence.Column;
 
 @Entity
 @Table(name = "users")
@@ -36,4 +38,9 @@ public class User {
     private Integer failedLoginAttempts = 0;
     @Column(nullable = false)
     private boolean enabled = true;
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
+
+    @Column
+    private LocalDateTime lastLogin;
 }
