@@ -78,11 +78,44 @@ private final AuditLogRepository auditLogRepository;
         );
     }
     @GetMapping("/transactions")
-    public Page<Transaction> getAllTransactions(
-            @RequestParam int page,
-            @RequestParam int size
+    public Page<Transaction> filterTransactions(
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) String userId,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Boolean suspicious,
+            @RequestParam(required = false) Double minAmount,
+            @RequestParam(required = false) Double maxAmount,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
     ) {
-        return adminService.getAllTransactions(page, size);
+
+        UUID userUUID = null;
+
+        try {
+            if (userId != null && !userId.isBlank()) {
+                userUUID = UUID.fromString(userId);
+            }
+        } catch (Exception ignored) {}
+
+        LocalDateTime fromDate = (from != null) ? LocalDateTime.parse(from) : null;
+        LocalDateTime toDate = (to != null) ? LocalDateTime.parse(to) : null;
+
+        return adminService.filterTransactions(
+                email,
+                userUUID,
+                type,
+                status,
+                suspicious,
+                minAmount,
+                maxAmount,
+                fromDate,
+                toDate,
+                page,
+                size
+        );
     }
     @GetMapping("/audit-logs")
     public Page<AuditResponse> getLogs(
