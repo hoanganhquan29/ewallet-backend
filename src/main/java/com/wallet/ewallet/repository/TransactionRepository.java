@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -45,4 +46,38 @@ AND t.createdAt >= :startOfDay
 
     @Query("SELECT COALESCE(SUM(t.amount),0) FROM Transaction t WHERE t.type = 'TRANSFER' AND t.status = 'SUCCESS'")
     double sumTransfer();
+    @Query("""
+SELECT FUNCTION('DATE', t.createdAt), SUM(t.amount)
+FROM Transaction t
+WHERE t.status = 'SUCCESS'
+GROUP BY FUNCTION('DATE', t.createdAt)
+ORDER BY FUNCTION('DATE', t.createdAt)
+""")
+    List<Object[]> getDailyRevenue();
+
+    @Query("""
+SELECT FUNCTION('TO_CHAR', t.createdAt, 'YYYY-MM'), SUM(t.amount)
+FROM Transaction t
+WHERE t.status = 'SUCCESS'
+GROUP BY FUNCTION('TO_CHAR', t.createdAt, 'YYYY-MM')
+ORDER BY FUNCTION('TO_CHAR', t.createdAt, 'YYYY-MM')
+""")
+    List<Object[]> getMonthlyRevenue();
+
+    @Query("""
+    SELECT t.type, SUM(t.amount)
+    FROM Transaction t
+    WHERE t.status = 'SUCCESS'
+    GROUP BY t.type
+""")
+    List<Object[]> getAmountByType();
+
+    @Query("""
+    SELECT t.sender.email, SUM(t.amount)
+    FROM Transaction t
+    WHERE t.status = 'SUCCESS'
+    GROUP BY t.sender.email
+    ORDER BY SUM(t.amount) DESC
+""")
+    List<Object[]> getTopUsers(Pageable pageable);
 }

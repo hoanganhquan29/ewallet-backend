@@ -28,4 +28,16 @@ public interface AuditLogRepository
             UUID userId,
             Pageable pageable
     );
+    @Query("SELECT COUNT(a) FROM AuditLog a WHERE a.action = 'LOGIN_FAIL'")
+    long countLoginFail();
+
+    @Query("SELECT COUNT(a) FROM AuditLog a WHERE a.action = 'LOCK_USER'")
+    long countLockUser();
+
+    @Query("""
+    SELECT COUNT(a)
+    FROM AuditLog a
+    WHERE a.action IN ('LOCK_USER', 'UPDATE_USER', 'DELETE_USER')
+""")
+    long countAdminActions();
 }

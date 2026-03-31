@@ -63,6 +63,7 @@ public class AuthService {
         }
 
         user.setFailedLoginAttempts(0);
+        user.setCreatedAt(LocalDateTime.now());
         userRepository.save(user);
 
         auditService.log(user.getId(), "LOGIN_PASSWORD_OK",
@@ -151,6 +152,7 @@ public class AuthService {
                 .isLocked(false)
                 .build();
 
+        user.setCreatedAt(LocalDateTime.now());
         userRepository.save(user);
         Wallet wallet = Wallet.builder()
                 .user(user)
