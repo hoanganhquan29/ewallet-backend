@@ -59,5 +59,6 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         redisTemplate.opsForValue().set(redisKey, "processed", Duration.ofMinutes(10));
 
         filterChain.doFilter(request, response);
+        System.out.println("IDEMPOTENCY FILTER: " + request.getRequestURI());
     }
 }

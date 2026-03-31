@@ -43,6 +43,7 @@ public class AuthController {
     @PostMapping("/verify-otp")
     public ResponseEntity<?> verifyOtp(@RequestBody Map<String, String> body,
                                        HttpServletRequest request) {
+        System.out.println(">>> VERIFY OTP HIT");
         try {
             String token = authService.verifyOtp(
                     body.get("email"),

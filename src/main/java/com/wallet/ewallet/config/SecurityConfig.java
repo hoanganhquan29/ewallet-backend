@@ -33,6 +33,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/payments/webhook").permitAll()
                         .anyRequest().authenticated()
                 )
+
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
