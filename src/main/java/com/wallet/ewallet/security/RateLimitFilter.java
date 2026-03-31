@@ -49,5 +49,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+        System.out.println("RATE COUNT: " + count);
+        System.out.println("RATE FILTER: " + request.getRequestURI());
     }
 }

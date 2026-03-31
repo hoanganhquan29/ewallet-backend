@@ -33,7 +33,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain)
             throws ServletException, IOException {
         String path = request.getRequestURI();
-        if (path.contains("/api/payments/webhook")) {
+        if (path.startsWith("/api/auth") || path.contains("/api/payments/webhook")) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -79,5 +79,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+        System.out.println("JWT FILTER: " + request.getRequestURI());
     }
 }

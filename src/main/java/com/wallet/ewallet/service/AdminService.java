@@ -1,4 +1,5 @@
 package com.wallet.ewallet.service;
+import com.wallet.ewallet.entity.Role;
 import com.wallet.ewallet.entity.Transaction;
 import com.wallet.ewallet.entity.User;
 import com.wallet.ewallet.repository.TransactionRepository;
@@ -18,7 +19,7 @@ public class AdminService {
     private final TransactionRepository transactionRepository;
     private final AuditService auditService;
     public List<User> getAllUsers() {
-        return userRepository.findAll();
+        return userRepository.findByEnabledTrue();
     }
 
     public void unlockUser(String email, String ip) {
@@ -47,5 +48,62 @@ public class AdminService {
         return transactionRepository.findBySuspiciousTrue(
                 PageRequest.of(page, size)
         );
+    }
+    public void lockUser(String email, String ip) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setLocked(true);
+
+        auditService.log(
+                user.getId(),
+                "LOCK_USER",
+                "Admin locked user " + email,
+                ip,
+                user.getEmail()
+        );
+
+        userRepository.save(user);
+    }
+    public void deleteUser(String email, String ip) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setEnabled(false);
+
+        auditService.log(
+                user.getId(),
+                "DELETE_USER",
+                "Admin deleted user " + email,
+                ip,
+                user.getEmail()
+        );
+
+        userRepository.save(user);
+    }
+    public User updateUser(String email, User updatedUser, String ip) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setPhone(updatedUser.getPhone());
+        user.setRole(updatedUser.getRole());
+
+        auditService.log(
+                user.getId(),
+                "UPDATE_USER",
+                "Admin updated user " + email,
+                ip,
+                user.getEmail()
+        );
+
+        return userRepository.save(user);
+    }
+    public User updateUserRole(String email, String role, String ip) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setRole(Role.valueOf(role));
+
+        return userRepository.save(user);
     }
 }
