@@ -11,7 +11,11 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+
+public interface TransactionRepository extends
+        JpaRepository<Transaction, UUID>,
+        JpaSpecificationExecutor<Transaction> {
 
     Page<Transaction> findBySenderOrReceiver(
             User sender,
@@ -30,5 +34,15 @@ AND t.createdAt >= :startOfDay
             UUID userId,
             LocalDateTime startOfDay
     );
+    @Query("SELECT COUNT(t) FROM Transaction t")
+    long countAllTransactions();
 
+    @Query("SELECT COALESCE(SUM(t.amount),0) FROM Transaction t WHERE t.status = 'SUCCESS'")
+    double sumAllAmount();
+
+    @Query("SELECT COALESCE(SUM(t.amount),0) FROM Transaction t WHERE t.type = 'DEPOSIT' AND t.status = 'SUCCESS'")
+    double sumDeposit();
+
+    @Query("SELECT COALESCE(SUM(t.amount),0) FROM Transaction t WHERE t.type = 'TRANSFER' AND t.status = 'SUCCESS'")
+    double sumTransfer();
 }
