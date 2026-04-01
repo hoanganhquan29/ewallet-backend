@@ -9,7 +9,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
-
+import java.util.UUID;
+import com.wallet.ewallet.dto.RequestMoneyRequest;
 import java.util.Map;
 import java.math.BigDecimal;
 import java.util.List;
@@ -99,5 +100,26 @@ public class WalletController {
     @PostMapping("/deposit/callback")
     public void callback(@RequestBody DepositCallbackRequest req) {
         walletService.handleDepositCallback(req);
+    }
+
+    @PostMapping("/request-money")
+    public String requestMoney(@RequestBody RequestMoneyRequest req) {
+        walletService.requestMoney(
+                req.getReceiverEmail(),
+                req.getAmount()
+        );
+        return "Request sent";
+    }
+
+    @PostMapping("/request-money/{id}/accept")
+    public String acceptRequest(@PathVariable UUID id) {
+        walletService.acceptRequest(id);
+        return "Accepted";
+    }
+
+    @PostMapping("/request-money/{id}/reject")
+    public String rejectRequest(@PathVariable UUID id) {
+        walletService.rejectRequest(id);
+        return "Rejected";
     }
 }
