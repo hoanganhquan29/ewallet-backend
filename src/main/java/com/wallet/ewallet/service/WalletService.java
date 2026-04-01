@@ -124,6 +124,106 @@ catch (ObjectOptimisticLockingFailureException e) {
     throw new RuntimeException("Transaction conflict, please retry");
     }
     }
+    @Transactional
+    public void requestMoney(String receiverEmail, BigDecimal amount) {
+
+        String requesterEmail = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
+
+        if (requesterEmail.equals(receiverEmail)) {
+            throw new RuntimeException("Cannot request yourself");
+        }
+
+        User requester = userRepository.findByEmail(requesterEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        User receiver = userRepository.findByEmail(receiverEmail)
+                .orElseThrow(() -> new RuntimeException("Receiver not found"));
+
+        Transaction tx = Transaction.builder()
+                .amount(amount)
+                .type(TransactionType.REQUEST)
+                .sender(receiver)
+                .receiver(requester)
+                .status(TransactionStatus.PENDING)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        transactionRepository.save(tx);
+    }
+
+    @Transactional
+    public void acceptRequest(UUID txId) {
+
+        String email = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
+
+        Transaction tx = transactionRepository.findById(txId)
+                .orElseThrow(() -> new RuntimeException("Transaction not found"));
+
+        if (!tx.getSender().getEmail().equals(email)) {
+            throw new RuntimeException("Not your request");
+        }
+
+        if (tx.getStatus() != TransactionStatus.PENDING) {
+            throw new RuntimeException("Already processed");
+        }
+
+        Wallet senderWallet = walletRepository.findByUser(tx.getSender())
+                .orElseThrow(() -> new RuntimeException("Wallet not found"));
+
+        Wallet receiverWallet = walletRepository.findByUser(tx.getReceiver())
+                .orElseThrow(() -> new RuntimeException("Wallet not found"));
+
+        if (senderWallet.getBalance().compareTo(tx.getAmount()) < 0) {
+            throw new RuntimeException("Insufficient balance");
+        }
+
+        // trừ tiền
+        senderWallet.setBalance(senderWallet.getBalance().subtract(tx.getAmount()));
+
+        // cộng tiền
+        receiverWallet.setBalance(receiverWallet.getBalance().add(tx.getAmount()));
+
+        walletRepository.save(senderWallet);
+        walletRepository.save(receiverWallet);
+
+        tx.setStatus(TransactionStatus.SUCCESS);
+        tx.setUpdatedAt(LocalDateTime.now());
+
+        transactionRepository.save(tx);
+    }
+
+    @Transactional
+    public void rejectRequest(UUID txId) {
+
+        String email = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
+
+        Transaction tx = transactionRepository.findById(txId)
+                .orElseThrow(() -> new RuntimeException("Transaction not found"));
+
+        if (!tx.getSender().getEmail().equals(email)) {
+            throw new RuntimeException("Not your request");
+        }
+
+        if (tx.getStatus() != TransactionStatus.PENDING) {
+            throw new RuntimeException("Already processed");
+        }
+
+        tx.setStatus(TransactionStatus.REJECTED);
+        tx.setUpdatedAt(LocalDateTime.now());
+
+        transactionRepository.save(tx);
+    }
+
     public BigDecimal getBalance() {
 
         String email = SecurityContextHolder
