@@ -14,8 +14,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Stream;
 
+import com.wallet.ewallet.dto.SplitBillResponse;
+import com.wallet.ewallet.dto.SplitBillDetailResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
@@ -32,6 +37,8 @@ public class WalletService {
     private final OtpRepository otpRepository;
     private final AuditService auditService;
     private final EmailService emailService;
+    private final SplitBillRepository splitBillRepository;
+    private final SplitBillDetailRepository splitBillDetailRepository;
     @Transactional
     public void transfer(String receiverEmail, BigDecimal amount) {
 try {
@@ -365,7 +372,7 @@ catch (ObjectOptimisticLockingFailureException e) {
             throw new RuntimeException("OTP expired");
         }
 
-        // gọi lại logic transfer CŨ của bạn
+        // gọi lại logic transfer cũ
         transfer(receiverEmail, amount);
 
         otpRepository.delete(otpCode);
@@ -376,5 +383,269 @@ catch (ObjectOptimisticLockingFailureException e) {
                 ip,
                 user.getEmail()
         );
+    }
+
+    public List<Transaction> getPendingRequests() {
+
+        String email = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return transactionRepository.findAll().stream()
+                .filter(tx ->
+                        tx.getType() == TransactionType.REQUEST &&
+                                tx.getStatus() == TransactionStatus.PENDING &&
+                                tx.getSender().getId().equals(user.getId()) // người phải trả tiền
+                )
+                .toList();
+    }
+
+    @Transactional
+    public void splitBill(
+            List<String> emails,
+            BigDecimal totalAmount,
+            boolean equalSplit,
+            Map<String, BigDecimal> customAmounts
+    ) {
+
+        String email = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
+
+        User creator = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // tạo request cha
+        SplitBill bill = SplitBill.builder()
+                .createdBy(creator)
+                .totalAmount(totalAmount)
+                .status(SplitBillStatus.PENDING)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        splitBillRepository.save(bill);
+
+        // tính tiền
+        BigDecimal eachAmount = BigDecimal.ZERO;
+
+        if (equalSplit) {
+            eachAmount = totalAmount.divide(
+                    BigDecimal.valueOf(emails.size()),
+                    2,
+                    java.math.RoundingMode.HALF_UP
+            );
+        }
+
+        if (!equalSplit) {
+
+            BigDecimal sum = customAmounts.values().stream()
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            if (sum.compareTo(totalAmount) != 0) {
+                throw new RuntimeException("Total mismatch");
+            }
+        }
+
+        // tạo request con
+        for (String e : emails) {
+
+            String emailTrim = e.trim();
+
+            if (emailTrim.isEmpty()) {
+                throw new RuntimeException("Email empty");
+            }
+
+            User user = userRepository.findByEmail(emailTrim)
+                    .orElseThrow(() -> new RuntimeException("User not found: " + emailTrim));
+
+            BigDecimal amount;
+
+            if (equalSplit) {
+                amount = eachAmount;
+            } else {
+
+                if (customAmounts == null) {
+                    throw new RuntimeException("Custom amounts missing");
+                }
+
+                if (!customAmounts.containsKey(emailTrim)) {
+                    throw new RuntimeException("Missing amount for " + emailTrim);
+                }
+
+                amount = customAmounts.get(emailTrim);
+
+                if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+                    throw new RuntimeException("Invalid amount for " + emailTrim);
+                }
+            }
+
+            SplitBillDetail detail = SplitBillDetail.builder()
+                    .splitBill(bill)
+                    .user(user)
+                    .amount(amount)
+                    .status(TransactionStatus.PENDING)
+                    .build();
+
+            splitBillDetailRepository.save(detail);
+        }
+    }
+
+    @Transactional
+    public void acceptSplit(UUID detailId) {
+
+        SplitBillDetail detail = splitBillDetailRepository.findById(detailId)
+                .orElseThrow(() -> new RuntimeException("Not found"));
+
+        if (detail.getStatus() != TransactionStatus.PENDING) {
+            throw new RuntimeException("Already processed");
+        }
+
+        User payer = detail.getUser();
+        User receiver = detail.getSplitBill().getCreatedBy();
+
+        Wallet payerWallet = walletRepository.findByUser(payer)
+                .orElseThrow();
+
+        Wallet receiverWallet = walletRepository.findByUser(receiver)
+                .orElseThrow();
+
+        if (payerWallet.getBalance().compareTo(detail.getAmount()) < 0) {
+            throw new RuntimeException("Not enough balance");
+        }
+
+        // transfer tiền
+        payerWallet.setBalance(payerWallet.getBalance().subtract(detail.getAmount()));
+        receiverWallet.setBalance(receiverWallet.getBalance().add(detail.getAmount()));
+
+        walletRepository.save(payerWallet);
+        walletRepository.save(receiverWallet);
+
+        detail.setStatus(TransactionStatus.SUCCESS);
+        splitBillDetailRepository.save(detail);
+
+        // tạo transaction thật
+        Transaction tx = Transaction.builder()
+                .amount(detail.getAmount())
+                .type(TransactionType.TRANSFER)
+                .sender(payer)
+                .receiver(receiver)
+                .status(TransactionStatus.SUCCESS)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        transactionRepository.save(tx);
+
+        updateSplitBillStatus(detail.getSplitBill().getId());
+    }
+
+    private void updateSplitBillStatus(UUID billId) {
+
+        List<SplitBillDetail> details =
+                splitBillDetailRepository.findBySplitBillId(billId);
+
+        long paid = details.stream()
+                .filter(d -> d.getStatus() == TransactionStatus.SUCCESS)
+                .count();
+
+        SplitBill bill = splitBillRepository.findById(billId).orElseThrow();
+
+        if (paid == 0) {
+            bill.setStatus(SplitBillStatus.PENDING);
+        } else if (paid < details.size()) {
+            bill.setStatus(SplitBillStatus.PARTIAL);
+        } else {
+            bill.setStatus(SplitBillStatus.COMPLETED);
+        }
+
+        splitBillRepository.save(bill);
+    }
+
+    @Transactional
+    public void rejectSplit(UUID detailId) {
+
+        SplitBillDetail detail = splitBillDetailRepository.findById(detailId)
+                .orElseThrow(() -> new RuntimeException("Not found"));
+
+        String email = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
+
+        if (!detail.getUser().getEmail().equals(email)) {
+            throw new RuntimeException("Not your bill");
+        }
+
+        if (detail.getStatus() != TransactionStatus.PENDING) {
+            throw new RuntimeException("Already processed");
+        }
+
+        detail.setStatus(TransactionStatus.REJECTED);
+        splitBillDetailRepository.save(detail);
+
+        updateSplitBillStatus(detail.getSplitBill().getId());
+    }
+
+    public List<SplitBillResponse> getMySplitBills() {
+
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication().getName();
+
+        User user = userRepository.findByEmail(email).orElseThrow();
+
+        // Bills mình nhận
+        List<SplitBill> receivedBills = splitBillDetailRepository
+                .findByUser(user)
+                .stream()
+                .map(SplitBillDetail::getSplitBill)
+                .toList();
+
+        // Bills mình tạo
+        List<SplitBill> createdBills = splitBillRepository.findByCreatedBy(user);
+
+        // Gộp lại, loại trùng
+        return Stream.concat(receivedBills.stream(), createdBills.stream())
+                .distinct()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    public SplitBillResponse getSplitBillDetail(UUID id) {
+
+        SplitBill bill = splitBillRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Split bill not found"));
+
+        return mapToResponse(bill);
+    }
+
+    private SplitBillResponse mapToResponse(SplitBill bill) {
+
+        List<SplitBillDetail> details =
+                splitBillDetailRepository.findBySplitBillId(bill.getId());
+
+        SplitBillResponse res = new SplitBillResponse();
+        res.setId(bill.getId());
+        res.setTotalAmount(bill.getTotalAmount());
+        res.setStatus(bill.getStatus().name());
+        res.setCreatedByEmail(bill.getCreatedBy().getEmail()); // ← thêm
+
+        List<SplitBillDetailResponse> detailRes = details.stream()
+                .map(d -> {
+                    SplitBillDetailResponse r = new SplitBillDetailResponse();
+                    r.setId(d.getId());
+                    r.setEmail(d.getUser().getEmail());
+                    r.setAmount(d.getAmount());
+                    r.setStatus(d.getStatus().name());
+                    return r;
+                })
+                .toList();
+
+        res.setDetails(detailRes);
+
+        return res;
     }
 }
