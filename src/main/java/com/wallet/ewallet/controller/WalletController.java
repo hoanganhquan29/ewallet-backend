@@ -13,6 +13,7 @@ import java.util.UUID;
 import com.wallet.ewallet.dto.RequestMoneyRequest;
 import java.util.Map;
 import java.math.BigDecimal;
+import com.wallet.ewallet.dto.SplitBillResponse;
 import java.util.List;
 import java.util.Map;
 import com.wallet.ewallet.dto.SplitBillRequest;
@@ -123,6 +124,11 @@ public class WalletController {
         return "Rejected";
     }
 
+    @GetMapping("/request-money/pending")
+    public List<Transaction> getPendingRequests() {
+        return walletService.getPendingRequests();
+    }
+
     @PostMapping("/split-bill")
     public String splitBill(@RequestBody SplitBillRequest req) {
 
@@ -146,5 +152,15 @@ public class WalletController {
     public String rejectSplit(@PathVariable UUID detailId) {
         walletService.rejectSplit(detailId);
         return "Rejected";
+    }
+
+    @GetMapping("/split-bill")
+    public List<SplitBillResponse> getMySplitBills() {
+        return walletService.getMySplitBills();
+    }
+
+    @GetMapping("/split-bill/{id}")
+    public SplitBillResponse getSplitBillDetail(@PathVariable UUID id) {
+        return walletService.getSplitBillDetail(id);
     }
 }

@@ -17,7 +17,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Stream;
 
+import com.wallet.ewallet.dto.SplitBillResponse;
+import com.wallet.ewallet.dto.SplitBillDetailResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
@@ -382,6 +385,25 @@ catch (ObjectOptimisticLockingFailureException e) {
         );
     }
 
+    public List<Transaction> getPendingRequests() {
+
+        String email = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return transactionRepository.findAll().stream()
+                .filter(tx ->
+                        tx.getType() == TransactionType.REQUEST &&
+                                tx.getStatus() == TransactionStatus.PENDING &&
+                                tx.getSender().getId().equals(user.getId()) // người phải trả tiền
+                )
+                .toList();
+    }
+
     @Transactional
     public void splitBill(
             List<String> emails,
@@ -428,7 +450,7 @@ catch (ObjectOptimisticLockingFailureException e) {
                 throw new RuntimeException("Total mismatch");
             }
         }
-        
+
         // tạo request con
         for (String e : emails) {
 
@@ -566,5 +588,64 @@ catch (ObjectOptimisticLockingFailureException e) {
         splitBillDetailRepository.save(detail);
 
         updateSplitBillStatus(detail.getSplitBill().getId());
+    }
+
+    public List<SplitBillResponse> getMySplitBills() {
+
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication().getName();
+
+        User user = userRepository.findByEmail(email).orElseThrow();
+
+        // Bills mình nhận
+        List<SplitBill> receivedBills = splitBillDetailRepository
+                .findByUser(user)
+                .stream()
+                .map(SplitBillDetail::getSplitBill)
+                .toList();
+
+        // Bills mình tạo
+        List<SplitBill> createdBills = splitBillRepository.findByCreatedBy(user);
+
+        // Gộp lại, loại trùng
+        return Stream.concat(receivedBills.stream(), createdBills.stream())
+                .distinct()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    public SplitBillResponse getSplitBillDetail(UUID id) {
+
+        SplitBill bill = splitBillRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Split bill not found"));
+
+        return mapToResponse(bill);
+    }
+
+    private SplitBillResponse mapToResponse(SplitBill bill) {
+
+        List<SplitBillDetail> details =
+                splitBillDetailRepository.findBySplitBillId(bill.getId());
+
+        SplitBillResponse res = new SplitBillResponse();
+        res.setId(bill.getId());
+        res.setTotalAmount(bill.getTotalAmount());
+        res.setStatus(bill.getStatus().name());
+        res.setCreatedByEmail(bill.getCreatedBy().getEmail()); // ← thêm
+
+        List<SplitBillDetailResponse> detailRes = details.stream()
+                .map(d -> {
+                    SplitBillDetailResponse r = new SplitBillDetailResponse();
+                    r.setId(d.getId());
+                    r.setEmail(d.getUser().getEmail());
+                    r.setAmount(d.getAmount());
+                    r.setStatus(d.getStatus().name());
+                    return r;
+                })
+                .toList();
+
+        res.setDetails(detailRes);
+
+        return res;
     }
 }
