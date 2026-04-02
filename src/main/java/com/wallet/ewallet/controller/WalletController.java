@@ -15,7 +15,7 @@ import java.util.Map;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
-
+import com.wallet.ewallet.dto.SplitBillRequest;
 @RestController
 @RequestMapping("/api/wallet")
 @RequiredArgsConstructor
@@ -71,7 +71,7 @@ public class WalletController {
                 SessionCreateParams.builder()
                         .setMode(SessionCreateParams.Mode.PAYMENT)
                         .setSuccessUrl(req.getSuccessUrl())
-                        .setCancelUrl(req.getSuccessUrl())
+                        .setCancelUrl(req.getCancelUrl())
                         .addLineItem(
                                 SessionCreateParams.LineItem.builder()
                                         .setQuantity(1L)
@@ -120,6 +120,31 @@ public class WalletController {
     @PostMapping("/request-money/{id}/reject")
     public String rejectRequest(@PathVariable UUID id) {
         walletService.rejectRequest(id);
+        return "Rejected";
+    }
+
+    @PostMapping("/split-bill")
+    public String splitBill(@RequestBody SplitBillRequest req) {
+
+        walletService.splitBill(
+                req.getEmails(),
+                req.getTotalAmount(),
+                req.isEqualSplit(),
+                req.getCustomAmounts()
+        );
+
+        return "Split bill sent";
+    }
+
+    @PostMapping("/split-bill/{detailId}/accept")
+    public String acceptSplit(@PathVariable UUID detailId) {
+        walletService.acceptSplit(detailId);
+        return "Paid";
+    }
+
+    @PostMapping("/split-bill/{detailId}/reject")
+    public String rejectSplit(@PathVariable UUID detailId) {
+        walletService.rejectSplit(detailId);
         return "Rejected";
     }
 }

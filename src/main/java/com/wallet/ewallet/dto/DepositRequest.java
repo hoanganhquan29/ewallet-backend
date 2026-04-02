@@ -6,8 +6,10 @@ import java.math.BigDecimal;
 @Data
 public class DepositRequest {
     private BigDecimal amount;
-    private String successUrl;
+    //private String successUrl;
     public BigDecimal getAmount() {
         return amount;
     }
+    private String successUrl;
+    private String cancelUrl;
 }
