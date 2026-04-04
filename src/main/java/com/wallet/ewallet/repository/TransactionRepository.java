@@ -80,4 +80,42 @@ ORDER BY FUNCTION('TO_CHAR', t.createdAt, 'YYYY-MM')
     ORDER BY SUM(t.amount) DESC
 """)
     List<Object[]> getTopUsers(Pageable pageable);
+
+    // ===== USER REPORT =====
+
+    @Query("""
+SELECT t FROM Transaction t
+WHERE (t.sender.id = :userId OR t.receiver.id = :userId)
+AND t.status = 'SUCCESS'
+""")
+    List<Transaction> findAllByUser(UUID userId);
+
+    @Query("""
+SELECT t FROM Transaction t
+WHERE (t.sender.id = :userId OR t.receiver.id = :userId)
+AND t.status = 'SUCCESS'
+AND t.createdAt BETWEEN :start AND :end
+""")
+    List<Transaction> findByUserAndTime(
+            UUID userId,
+            LocalDateTime start,
+            LocalDateTime end
+    );
+
+    @Query("""
+SELECT t FROM Transaction t
+WHERE (t.sender.id = :userId OR t.receiver.id = :userId)
+AND t.status = 'SUCCESS'
+ORDER BY t.amount DESC
+""")
+    List<Transaction> findTopTransactions(UUID userId, Pageable pageable);
+
+    @Query("""
+SELECT t FROM Transaction t
+WHERE (t.sender.id = :userId OR t.receiver.id = :userId)
+AND t.status = 'SUCCESS'
+ORDER BY t.createdAt DESC
+""")
+    List<Transaction> findLatestTransactions(UUID userId, Pageable pageable);
+
 }
