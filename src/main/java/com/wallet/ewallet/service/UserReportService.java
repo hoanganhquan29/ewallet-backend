@@ -113,4 +113,24 @@ public class UserReportService {
 
         return sb.toString();
     }
+
+    public List<TrendPointDTO> getMonthlyTrend(UUID userId) {
+        return transactionRepository.getMonthlyTrend(userId)
+                .stream()
+                .map(obj -> new TrendPointDTO(
+                        obj[0].toString(),
+                        Double.parseDouble(obj[1].toString())
+                ))
+                .toList();
+    }
+
+    public List<TrendPointDTO> getYearlyTrend(UUID userId) {
+        return transactionRepository.getYearlyTrend(userId)
+                .stream()
+                .map(obj -> new TrendPointDTO(
+                        obj[0].toString(),
+                        Double.parseDouble(obj[1].toString())
+                ))
+                .toList();
+    }
 }

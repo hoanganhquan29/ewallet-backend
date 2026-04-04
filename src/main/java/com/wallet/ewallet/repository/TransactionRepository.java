@@ -118,4 +118,31 @@ ORDER BY t.createdAt DESC
 """)
     List<Transaction> findLatestTransactions(UUID userId, Pageable pageable);
 
+    @Query("""
+SELECT FUNCTION('TO_CHAR', t.createdAt, 'YYYY-MM'), SUM(t.amount)
+FROM Transaction t
+WHERE t.status = 'SUCCESS'
+AND (
+    (t.sender IS NOT NULL AND t.sender.id = :userId)
+    OR
+    (t.receiver IS NOT NULL AND t.receiver.id = :userId)
+)
+GROUP BY FUNCTION('TO_CHAR', t.createdAt, 'YYYY-MM')
+ORDER BY FUNCTION('TO_CHAR', t.createdAt, 'YYYY-MM')
+""")
+    List<Object[]> getMonthlyTrend(UUID userId);
+
+    @Query("""
+SELECT FUNCTION('TO_CHAR', t.createdAt, 'YYYY'), SUM(t.amount)
+FROM Transaction t
+WHERE t.status = 'SUCCESS'
+AND (
+    (t.sender IS NOT NULL AND t.sender.id = :userId)
+    OR
+    (t.receiver IS NOT NULL AND t.receiver.id = :userId)
+)
+GROUP BY FUNCTION('TO_CHAR', t.createdAt, 'YYYY')
+ORDER BY FUNCTION('TO_CHAR', t.createdAt, 'YYYY')
+""")
+    List<Object[]> getYearlyTrend(UUID userId);
 }

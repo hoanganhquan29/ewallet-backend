@@ -5,7 +5,7 @@ import com.wallet.ewallet.report.dto.*;
 import com.wallet.ewallet.service.UserReportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
+import java.time.OffsetDateTime;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -28,10 +28,13 @@ public class UserReportController {
             @RequestParam String start,
             @RequestParam String end
     ) {
+        LocalDateTime startTime = OffsetDateTime.parse(start).toLocalDateTime();
+        LocalDateTime endTime = OffsetDateTime.parse(end).toLocalDateTime();
+
         return service.getByTime(
                 userId,
-                LocalDateTime.parse(start),
-                LocalDateTime.parse(end)
+                startTime,
+                endTime
         );
     }
 
@@ -41,10 +44,13 @@ public class UserReportController {
             @RequestParam String start,
             @RequestParam String end
     ) {
+        LocalDateTime startTime = OffsetDateTime.parse(start).toLocalDateTime();
+        LocalDateTime endTime = OffsetDateTime.parse(end).toLocalDateTime();
+
         return service.getTrend(
                 userId,
-                LocalDateTime.parse(start),
-                LocalDateTime.parse(end)
+                startTime,
+                endTime
         );
     }
 
@@ -61,5 +67,15 @@ public class UserReportController {
     @GetMapping("/export")
     public String export(@RequestParam UUID userId) {
         return service.exportCSV(userId);
+    }
+
+    @GetMapping("/trend/monthly")
+    public List<TrendPointDTO> monthly(@RequestParam UUID userId) {
+        return service.getMonthlyTrend(userId);
+    }
+
+    @GetMapping("/trend/yearly")
+    public List<TrendPointDTO> yearly(@RequestParam UUID userId) {
+        return service.getYearlyTrend(userId);
     }
 }
