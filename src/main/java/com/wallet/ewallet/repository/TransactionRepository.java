@@ -1,6 +1,7 @@
 package com.wallet.ewallet.repository;
 
 import com.wallet.ewallet.entity.Transaction;
+import com.wallet.ewallet.entity.TransactionType;
 import com.wallet.ewallet.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -145,4 +146,24 @@ GROUP BY FUNCTION('TO_CHAR', t.createdAt, 'YYYY')
 ORDER BY FUNCTION('TO_CHAR', t.createdAt, 'YYYY')
 """)
     List<Object[]> getYearlyTrend(UUID userId);
+
+    @Query("""
+SELECT t FROM Transaction t
+WHERE (t.sender.id = :userId OR t.receiver.id = :userId)
+AND (:type IS NULL OR t.type = :type)
+AND (:start IS NULL OR t.createdAt >= :start)
+AND (:end IS NULL OR t.createdAt <= :end)
+AND (:minAmount IS NULL OR t.amount >= :minAmount)
+AND (:maxAmount IS NULL OR t.amount <= :maxAmount)
+ORDER BY t.createdAt DESC
+""")
+    Page<Transaction> filterTransactions(
+            UUID userId,
+            TransactionType type,
+            LocalDateTime start,
+            LocalDateTime end,
+            BigDecimal minAmount,
+            BigDecimal maxAmount,
+            Pageable pageable
+    );
 }

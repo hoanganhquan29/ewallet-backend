@@ -4,17 +4,22 @@ import com.stripe.model.checkout.Session;
 import com.stripe.param.checkout.SessionCreateParams;
 import com.wallet.ewallet.dto.*;
 import com.wallet.ewallet.entity.Transaction;
+import com.wallet.ewallet.entity.TransactionType;
 import com.wallet.ewallet.service.WalletService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
-import java.util.UUID;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+
 import com.wallet.ewallet.dto.RequestMoneyRequest;
-import java.util.Map;
+
 import java.math.BigDecimal;
 import com.wallet.ewallet.dto.SplitBillResponse;
-import java.util.List;
+
 import java.util.Map;
 import com.wallet.ewallet.dto.SplitBillRequest;
 @RestController
@@ -30,12 +35,40 @@ public class WalletController {
     }
 
     @GetMapping("/transactions")
-    public Page<Transaction> transactions(
+    public Page<?> transactions(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+
+            @RequestParam(required = false) TransactionType type,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) BigDecimal minAmount,
+            @RequestParam(required = false) BigDecimal maxAmount
     ) {
-        return walletService.getTransactions(page, size);
+
+        LocalDateTime start = startDate != null ? LocalDateTime.parse(startDate) : null;
+        LocalDateTime end = endDate != null ? LocalDateTime.parse(endDate) : null;
+
+        var result = walletService.filterTransactions(
+                page, size, type, start, end, minAmount, maxAmount
+        );
+
+
+        DateTimeFormatter f = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+        return result.map(t -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", t.getId());
+            map.put("amount", t.getAmount());
+            map.put("type", t.getType());
+            map.put("date", t.getCreatedAt().format(f));
+            map.put("senderEmail", t.getSender() != null ? t.getSender().getEmail() : null);
+            map.put("receiverEmail", t.getReceiver() != null ? t.getReceiver().getEmail() : null);
+            map.put("status", t.getStatus());
+            return map;
+        });
     }
+
     @PostMapping("/transfer/request")
     public String requestTransfer(@RequestBody TransferRequest request) {
 
