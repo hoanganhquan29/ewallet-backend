@@ -20,34 +20,36 @@ public class TransactionSpecification {
     ) {
         return (root, query, cb) -> {
 
-            var predicate = cb.or(
-                    cb.equal(root.get("sender").get("id"), userId),
+            // DEPOSIT có sender = null → phải check isNotNull trước khi so sánh id
+            var senderMatch = cb.and(
+                    root.get("sender").isNotNull(),
+                    cb.equal(root.get("sender").get("id"), userId)
+            );
+            var receiverMatch = cb.and(
+                    root.get("receiver").isNotNull(),
                     cb.equal(root.get("receiver").get("id"), userId)
             );
 
+            var predicate = cb.or(senderMatch, receiverMatch);
+
             if (type != null) {
-                predicate = cb.and(predicate,
-                        cb.equal(root.get("type"), type));
+                predicate = cb.and(predicate, cb.equal(root.get("type"), type));
             }
 
             if (start != null) {
-                predicate = cb.and(predicate,
-                        cb.greaterThanOrEqualTo(root.get("createdAt"), start));
+                predicate = cb.and(predicate, cb.greaterThanOrEqualTo(root.get("createdAt"), start));
             }
 
             if (end != null) {
-                predicate = cb.and(predicate,
-                        cb.lessThanOrEqualTo(root.get("createdAt"), end));
+                predicate = cb.and(predicate, cb.lessThanOrEqualTo(root.get("createdAt"), end));
             }
 
             if (minAmount != null) {
-                predicate = cb.and(predicate,
-                        cb.greaterThanOrEqualTo(root.get("amount"), minAmount));
+                predicate = cb.and(predicate, cb.greaterThanOrEqualTo(root.get("amount"), minAmount));
             }
 
             if (maxAmount != null) {
-                predicate = cb.and(predicate,
-                        cb.lessThanOrEqualTo(root.get("amount"), maxAmount));
+                predicate = cb.and(predicate, cb.lessThanOrEqualTo(root.get("amount"), maxAmount));
             }
 
             return predicate;
