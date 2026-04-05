@@ -4,11 +4,15 @@ import com.stripe.model.checkout.Session;
 import com.stripe.param.checkout.SessionCreateParams;
 import com.wallet.ewallet.dto.*;
 import com.wallet.ewallet.entity.Transaction;
+import com.wallet.ewallet.entity.TransactionType;
 import com.wallet.ewallet.service.WalletService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 import com.wallet.ewallet.dto.RequestMoneyRequest;
 import java.util.Map;
@@ -30,12 +34,37 @@ public class WalletController {
     }
 
     @GetMapping("/transactions")
-    public Page<Transaction> transactions(
+    public Page<?> transactions(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+
+            @RequestParam(required = false) TransactionType type,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) BigDecimal minAmount,
+            @RequestParam(required = false) BigDecimal maxAmount
     ) {
-        return walletService.getTransactions(page, size);
+
+        LocalDateTime start = startDate != null ? LocalDateTime.parse(startDate) : null;
+        LocalDateTime end = endDate != null ? LocalDateTime.parse(endDate) : null;
+
+        var result = walletService.filterTransactions(
+                page, size, type, start, end, minAmount, maxAmount
+        );
+
+
+        DateTimeFormatter f = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+        return result.map(t -> {
+            return Map.of(
+                    "id", t.getId(),
+                    "amount", t.getAmount(),
+                    "type", t.getType(),
+                    "date", t.getCreatedAt().format(f)
+            );
+        });
     }
+    
     @PostMapping("/transfer/request")
     public String requestTransfer(@RequestBody TransferRequest request) {
 
