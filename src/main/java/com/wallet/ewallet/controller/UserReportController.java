@@ -7,7 +7,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import java.time.OffsetDateTime;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -16,6 +19,22 @@ import java.util.UUID;
 public class UserReportController {
 
     private final UserReportService service;
+
+    private static final DateTimeFormatter DATE_FORMATTER =
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+
+    // Helper map Transaction → đúng format TransactionItem cần
+    private Map<String, Object> mapTransaction(Transaction t) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", t.getId());
+        map.put("amount", t.getAmount());
+        map.put("type", t.getType());
+        map.put("status", t.getStatus());
+        map.put("date", t.getCreatedAt() != null ? t.getCreatedAt().format(DATE_FORMATTER) : "");
+        map.put("senderEmail", t.getSender() != null ? t.getSender().getEmail() : null);
+        map.put("receiverEmail", t.getReceiver() != null ? t.getReceiver().getEmail() : null);
+        return map;
+    }
 
     @GetMapping("/overview")
     public UserStatsDTO overview(@RequestParam UUID userId) {
@@ -30,12 +49,7 @@ public class UserReportController {
     ) {
         LocalDateTime startTime = OffsetDateTime.parse(start).toLocalDateTime();
         LocalDateTime endTime = OffsetDateTime.parse(end).toLocalDateTime();
-
-        return service.getByTime(
-                userId,
-                startTime,
-                endTime
-        );
+        return service.getByTime(userId, startTime, endTime);
     }
 
     @GetMapping("/trend")
@@ -46,22 +60,21 @@ public class UserReportController {
     ) {
         LocalDateTime startTime = OffsetDateTime.parse(start).toLocalDateTime();
         LocalDateTime endTime = OffsetDateTime.parse(end).toLocalDateTime();
-
-        return service.getTrend(
-                userId,
-                startTime,
-                endTime
-        );
+        return service.getTrend(userId, startTime, endTime);
     }
 
     @GetMapping("/top")
-    public List<Transaction> top(@RequestParam UUID userId) {
-        return service.getTop(userId);
+    public List<Map<String, Object>> top(@RequestParam UUID userId) {
+        return service.getTop(userId).stream()
+                .map(this::mapTransaction)
+                .toList();
     }
 
     @GetMapping("/latest")
-    public List<Transaction> latest(@RequestParam UUID userId) {
-        return service.getLatest(userId);
+    public List<Map<String, Object>> latest(@RequestParam UUID userId) {
+        return service.getLatest(userId).stream()
+                .map(this::mapTransaction)
+                .toList();
     }
 
     @GetMapping("/export")
