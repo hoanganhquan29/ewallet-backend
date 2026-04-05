@@ -13,12 +13,13 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.UUID;
+import java.util.*;
+
 import com.wallet.ewallet.dto.RequestMoneyRequest;
-import java.util.Map;
+
 import java.math.BigDecimal;
 import com.wallet.ewallet.dto.SplitBillResponse;
-import java.util.List;
+
 import java.util.Map;
 import com.wallet.ewallet.dto.SplitBillRequest;
 @RestController
@@ -56,15 +57,18 @@ public class WalletController {
         DateTimeFormatter f = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
         return result.map(t -> {
-            return Map.of(
-                    "id", t.getId(),
-                    "amount", t.getAmount(),
-                    "type", t.getType(),
-                    "date", t.getCreatedAt().format(f)
-            );
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", t.getId());
+            map.put("amount", t.getAmount());
+            map.put("type", t.getType());
+            map.put("date", t.getCreatedAt().format(f));
+            map.put("senderEmail", t.getSender() != null ? t.getSender().getEmail() : null);
+            map.put("receiverEmail", t.getReceiver() != null ? t.getReceiver().getEmail() : null);
+            map.put("status", t.getStatus());
+            return map;
         });
     }
-    
+
     @PostMapping("/transfer/request")
     public String requestTransfer(@RequestBody TransferRequest request) {
 
