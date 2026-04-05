@@ -18,7 +18,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Stream;
-
+import com.wallet.ewallet.specification.TransactionSpecification;
+import org.springframework.data.jpa.domain.Specification;
 import com.wallet.ewallet.dto.SplitBillResponse;
 import com.wallet.ewallet.dto.SplitBillDetailResponse;
 import org.springframework.data.domain.Page;
@@ -647,5 +648,39 @@ catch (ObjectOptimisticLockingFailureException e) {
         res.setDetails(detailRes);
 
         return res;
+    }
+
+    public Page<Transaction> filterTransactions(
+            int page,
+            int size,
+            TransactionType type,
+            LocalDateTime start,
+            LocalDateTime end,
+            BigDecimal minAmount,
+            BigDecimal maxAmount
+    ) {
+
+        String email = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Specification<Transaction> spec =
+                TransactionSpecification.filter(
+                        user.getId(),
+                        type,
+                        start,
+                        end,
+                        minAmount,
+                        maxAmount
+                );
+
+        return transactionRepository.findAll(
+                spec,
+                PageRequest.of(page, size)
+        );
     }
 }
