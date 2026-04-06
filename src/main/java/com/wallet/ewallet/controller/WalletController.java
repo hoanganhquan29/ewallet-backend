@@ -111,8 +111,8 @@ public class WalletController {
                                         .setQuantity(1L)
                                         .setPriceData(
                                                 SessionCreateParams.LineItem.PriceData.builder()
-                                                        .setCurrency("usd")
-                                                        .setUnitAmount((long) (req.getAmount().doubleValue() * 100))
+                                                        .setCurrency("vnd") //
+                                                        .setUnitAmount(req.getAmount().longValue()) 
                                                         .setProductData(
                                                                 SessionCreateParams.LineItem.PriceData.ProductData.builder()
                                                                         .setName("Wallet Deposit")
